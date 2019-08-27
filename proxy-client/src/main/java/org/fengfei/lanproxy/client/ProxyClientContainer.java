@@ -1,10 +1,13 @@
 package org.fengfei.lanproxy.client;
 
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
+import io.netty.handler.proxy.Socks5ProxyHandler;
+import io.netty.util.internal.StringUtil;
 import org.fengfei.lanproxy.client.handlers.ClientChannelHandler;
 import org.fengfei.lanproxy.client.handlers.RealServerChannelHandler;
 import org.fengfei.lanproxy.client.listener.ChannelStatusListener;
@@ -28,6 +31,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.proxy.HttpProxyHandler;
 
 public class ProxyClientContainer implements Container, ChannelStatusListener {
 
@@ -75,6 +79,19 @@ public class ProxyClientContainer implements Container, ChannelStatusListener {
 
             @Override
             public void initChannel(SocketChannel ch) throws Exception {
+                String proxyType = config.getStringValue("proxy.type");
+                if(!(StringUtil.isNullOrEmpty(proxyType))){
+                    String proxyIp = config.getStringValue("proxy.ip");
+                    String proxyPort = config.getStringValue("proxy.port");
+                    switch (proxyType) {
+                        case "HTTP":
+                            ch.pipeline().addLast(new HttpProxyHandler(new InetSocketAddress(proxyIp, Integer.parseInt(proxyPort))));
+                            break;
+                        case "SOCKS5":
+                            ch.pipeline().addLast(new Socks5ProxyHandler(new InetSocketAddress(proxyIp, Integer.parseInt(proxyPort))));
+                            break;
+                    }
+                }
                 if (Config.getInstance().getBooleanValue("ssl.enable", false)) {
                     if (sslContext == null) {
                         sslContext = SslContextCreator.createSSLContext();
